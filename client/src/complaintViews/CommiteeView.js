@@ -1,0 +1,226 @@
+import React, { useState, useEffect } from 'react';
+import { useHistory, useParams, Link } from 'react-router-dom';
+import { Button, Grid, makeStyles, Typography,TextField,FormControl } from '@material-ui/core';
+import BackArrow from '@material-ui/icons/KeyboardBackspace';
+
+import axiosInstance from '../helpers/axiosInstance';
+import ComplaintDetails from './components/ComplaintDetails';
+import FormB from '../forms/components/FormB2';
+import Loader from '../helpers/components/Loader';
+import GetWindowWidth from '../helpers/GetWindowWidth';
+import Notification from '../helpers/components/Notification';
+
+const useStyles = makeStyles((theme) => ({
+  button: {
+    borderRadius: 0,
+    width: '60%',
+  },
+  acceptBtn: {
+    backgroundColor: 'green',
+    color: 'white',
+    '&:hover': {
+      backgroundColor: '#006400',
+    },
+  },
+  rejectBtn: {
+    backgroundColor: 'red',
+    color: 'white',
+    '&:hover': {
+      backgroundColor: '#CD0000',
+    },
+  },
+  div: {
+    marginTop: '20px',
+    padding: '10px',
+  },
+  statusDiv: {
+    marginTop: '-10px',
+    padding: '10px',
+  },
+}));
+
+const CommiteeView = (props) => {
+  const classes = useStyles();
+  const history = useHistory();
+  const { complaintId } = useParams();
+  const { width } = GetWindowWidth();
+
+  const [complaint, setComplaint] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('');
+  const [progressWork, setEditprogressWork] = useState(false);
+  const [comment, setComment] = useState('');
+  const [visibleSubmit, setVisibleSubmit] = useState(true);
+  const [buttonText,setbuttonText]=useState('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!complaintId) {
+          history.push('/ui/dashboard/commitee');
+          return;
+        }
+        const result = await axiosInstance.get(
+          `/api/complaint/details/${complaintId}`
+        );
+
+        const user = JSON.parse(
+          window.localStorage.getItem('WCEMaintananceManagementSystemUser')
+        );
+
+        const grantAccessTo = result.data.complaint.grantAccessTo[0];
+
+        if (grantAccessTo[user.currentUser.department].isSubmitted)
+          setVisibleSubmit(false);
+
+        setComplaint(result.data.complaint);
+        if(result.data.complaint.stage==6 || result.data.complaint.stage==7)
+        {
+          if(result.data.complaint.stage==6)
+          {
+            setbuttonText('Work in Progress');
+          }
+          else
+          setbuttonText('Work done');
+          setEditprogressWork(true);
+        }
+      } catch (error) {
+        try {
+          if (error.response.status === 403) history.push('/ui/login');
+          setMessage(error.response.data.error);
+          setMessageType('error');
+          setOpen(true);
+        } catch (error) {
+          setMessage('Unable to fetch data');
+          setMessageType('error');
+          setOpen(true);
+          history.push('/ui/dashboard/committee');
+        }
+      }
+    })();
+  }, [history, props]);
+
+  const submitHandler = async () => {
+    try {
+      await axiosInstance.post(`/api/complaint/accept/${complaintId}`);
+
+      history.push('/ui/dashboard/committee');
+    } catch (error) {
+      try {
+        if (error.response.status === 403) history.push('/ui/login');
+        setMessage(error.response.data.error);
+        setMessageType('error');
+        setOpen(true);
+      } catch (error) {
+        setMessage('Database Error');
+        setMessageType('error');
+        setOpen(true);
+        history.push('/ui/dashboard/committee');
+      }
+    }
+  };
+  const progressHandler=async()=>{
+    console.log("Accept clicked");
+    try {
+      const result = await axiosInstance.get(
+        `/api/complaint/details/${complaintId}`
+      );
+console.log(result.data.complaint);
+      await axiosInstance.post(`/api/complaint/accept/${complaintId}`);
+      history.push("/ui/dashboard/committee");
+    } catch (error) {
+      try {
+        if (error.response.status === 403) history.push("/ui/login");
+        setMessage(error.response.data.error);
+        setMessageType("error");
+        setOpen(true);
+      } catch (error) {
+        setMessage("Database Error");
+        setMessageType("error");
+        setOpen(true);
+        history.push("/ui/dashboard/committee");
+      }
+    }
+  }
+
+  if (!complaint) return <Loader />;
+
+  return (
+    <React.Fragment>
+      <Notification
+        open={open}
+        setOpen={setOpen}
+        message={message}
+        type={messageType}
+      />
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={9}>
+          <Typography variant="h4">Request Details</Typography>
+        </Grid>
+        <Grid
+          item
+          xs={5}
+          md={3}
+          align={width > 960 ? 'right' : 'left'}
+          className={classes.backButton}
+        >
+          <Link to="/ui/dashboard/committee">
+            <Button
+              size="large"
+              fullWidth
+              variant="contained"
+              color="primary"
+              startIcon={<BackArrow />}
+            >
+              Back to Dashboard
+            </Button>
+          </Link>
+        </Grid>
+      </Grid>
+
+      <div className={classes.div}>
+        <ComplaintDetails complaintData={complaint} />
+      </div>
+      
+      <div className={classes.div}>
+        
+      {visibleSubmit && (  <FormB complaintId={complaintId} />)}
+        {visibleSubmit && (
+          <Grid item md={4} xs={4}>
+            <Button
+              className={[classes.button, classes.acceptBtn].join(' ')}
+              type="submit"
+              size="large"
+              variant="contained"
+              onClick={submitHandler}
+            >
+              Submit
+            </Button>
+          </Grid>
+        )}
+      </div>
+      
+
+     {progressWork && ( <div>
+        <br></br><br/>
+      <Grid container className={classes.marginTop} spacing={1}>
+        <Grid item md={4} xs={8}>
+          <Button
+            className={[classes.button, classes.acceptBtn].join(' ')}
+            size="large"
+            variant="contained"
+            onClick={progressHandler}
+            color="primary"
+          >
+          {buttonText}
+          </Button>
+        </Grid>
+        </Grid>
+      </div>
+      )} 
+    </React.Fragment>
+  );
+};
+
+export default CommiteeView;
