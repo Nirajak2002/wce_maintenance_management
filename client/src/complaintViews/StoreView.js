@@ -56,6 +56,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 export default function DirectorView(props) {
+  
   const classes = useStyles();
   const history = useHistory();
   const { complaintId } = useParams();
@@ -70,7 +71,6 @@ export default function DirectorView(props) {
   const [messageType, setMessageType] = useState("");
   const [StoreMaterial, setStoreMaterial] = useState(null);
   const [OrderedMaterial, setOrderedMaterial] = useState(null);
-  const [actualCost,setactualCost]=useState(0);
   const[OrderedLabours,setOrderedLabours]=useState(null);
 
   useEffect(() => {
@@ -126,7 +126,6 @@ export default function DirectorView(props) {
         setStoreMaterial(existing);
         setOrderedMaterial(ordered);
         setOrderedLabours(labour);
-
         setComplaint(result.data.complaint);
       } catch (error) {
         try {
@@ -143,16 +142,16 @@ export default function DirectorView(props) {
     })();
   }, [complaintId, history, props]);
 
-  const allocateHandler= async ()=>{
+  const allocateHandler= async (e)=>{
     // console.log('allocate');
     // setButtonVisibility(false);
-    console.log(actualCost);
-    const actualMaterialCost= parseInt( actualCost,10);
-    try {
+    const actual=e.target[0].value;
+     const actualMaterialCost= parseInt(actual,10);
       const queryData={
        actualMaterialCost,
       };
       console.log(queryData);
+      try{
       await axiosInstance.post(`/api/complaint/accept/${complaintId}/`,queryData);
       history.push("/ui/store");
     } catch (error) {
@@ -170,6 +169,7 @@ export default function DirectorView(props) {
     }
   }
   const formButtons = () => {
+    
     return (
       <Grid container spacing={1} style={{ marginTop: "15px" }}>
         <Notification
@@ -178,36 +178,39 @@ export default function DirectorView(props) {
           message={message}
           type={messageType}
         />
+        <form onSubmit={allocateHandler}>
         <Grid item md={2} xs={12}>
         <FormControl className={classes.formControl}>
           <TextField
           type= "number"
-          
+          name="actual"
             className={classes.style}
             fullWidth
-            label="Fill actual cost"
+            label="Actual material cost"
             size="small"
-            value={actualCost}
-            onChange={(event) =>{setactualCost(event.target.value);
-            setButtonVisibility(true);}}
+            aria-readonly={true}
+            value={totalCostOrdered()+totalCostStorematerial()}
+            // onChange={(event) =>{setactualCost(event.target.value);
+            // console.log(actualCost);
+            // setButtonVisibility(true);}}
           />
           <br/><br/>
         </FormControl>
       </Grid>
-      {buttonVisibility && (
+  
         <Grid item md={5} xs={8}>
           <Button
             className={[classes.button, classes.acceptBtn].join(" ")}
             type="submit"
             size="large"
             variant="contained"
-            onClick={allocateHandler}
+            // onClick={allocateHandler}
             fullWidth
           >
             Allocate Material
           </Button>
         </Grid>
-      )}
+    </form>
       </Grid>
     );
   };
@@ -366,7 +369,7 @@ export default function DirectorView(props) {
           align={width > 960 ? "right" : "left"}
           className={classes.backButton}
         >
-          <Link to="/ui/dashboard/director">
+          <Link to="/ui/store">
             <Button
               size="large"
               fullWidth
@@ -392,12 +395,15 @@ export default function DirectorView(props) {
       >
         Total Estimated cost :{" "}
         {totalCostOrdered() + totalCostStorematerial()}
+        
+
       </Typography>
       {editComplaint && (
         <div className={classes.div}>
           { formButtons()}
         </div>
       )}
+     
     </React.Fragment>
   );
 }
