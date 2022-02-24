@@ -32,6 +32,10 @@ const OrderedMaterialSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
   },
+  actualCost:{
+    type: Number,
+    default:0,
+  }
 });
 
 const MaterialSchema = new mongoose.Schema({
