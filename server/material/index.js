@@ -116,7 +116,7 @@ router.put('/:id', validateUpdate, async (req, res) => {
         success: 0,
         error: 'Id not provided',
       });
-
+     
     if (req.body.type === 'available') {
       const material = await Store.findOne(
         { _id: req.params.id },
@@ -287,5 +287,59 @@ router.delete('/:id', validateDelete, async (req, res) => {
     });
   }
 });
+
+
+
+
+router.put('/actualcost/:id', async (req, res) => {
+  try {
+    if (!req.params.id)
+      return res.status(400).json({
+        success: 0,
+        error: 'Id not provided',
+      });
+      console.log( req.body.actualCostArrayObj[0].actual);
+      const response = await Material.updateOne(
+        {
+          complaintId: ObjectId(req.body.complaintId),
+        },
+        [
+          {
+            $set: {
+                orderedMaterial: {
+                    $map: {
+                        input: { $range: [ 0, { $size: "$orderedMaterial" } ] },
+                        in: {
+                            $mergeObjects: [ 
+                                { $arrayElemAt: [ "$orderedMaterial", "$$this"  ] }, 
+                                { actualCost: { $arrayElemAt: [ req.body.actualCostArrayObj, "$$this"  ] } } 
+                            ]
+                        }
+                    }
+                }
+             }
+          }
+        ],
+        { new: true }
+      );
+      return res.status(200).json({
+        success: 1,
+        data: response,
+      });
+  } catch (error) {
+    console.log(error);
+    return res.status(400).json({
+      success: 0,
+      error: 'Unable to update data',
+    });
+  }
+  
+});
+
+
+
+
+
+
 
 module.exports = router;
