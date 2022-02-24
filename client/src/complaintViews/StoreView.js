@@ -72,6 +72,8 @@ export default function DirectorView(props) {
   const [StoreMaterial, setStoreMaterial] = useState(null);
   const [OrderedMaterial, setOrderedMaterial] = useState(null);
   const[OrderedLabours,setOrderedLabours]=useState(null);
+  const [actualCostArray,setActualCostArray]=useState([]);
+  const [value, setValue] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -143,16 +145,34 @@ export default function DirectorView(props) {
   }, [complaintId, history, props]);
 
   const allocateHandler= async (e)=>{
-    // console.log('allocate');
     // setButtonVisibility(false);
+    e.preventDefault();
+    console.log('allocate');
+    var queryData,queryData2;
+    if(OrderedMaterial.length){
+    var newArray = Object.values(actualCostArray.reduce((acc,cur)=>Object.assign(acc,{[cur.material]:cur}),{}));
+newArray.sort(function(a,b){
+  return a.index-b.index;
+})
+    var actualCostArrayObj=[];
+    for(let i=0;i<newArray.length;i++)
+    {
+      actualCostArrayObj.push(newArray[i].actual);
+    }
+   queryData={
+ actualCostArrayObj,complaintId
+   };
+  }
+   
     const actual=e.target[0].value;
      const actualMaterialCost= parseInt(actual,10);
-      const queryData={
+      queryData2={
        actualMaterialCost,
       };
-      console.log(queryData);
-      try{
-      await axiosInstance.post(`/api/complaint/accept/${complaintId}/`,queryData);
+    try{
+      if(OrderedMaterial.length)
+      await axiosInstance.put(`/api/material/actualcost/${complaintId}/`,queryData);
+      await axiosInstance.post(`/api/complaint/accept/${complaintId}/`,queryData2);
       history.push("/ui/store");
     } catch (error) {
       try {
@@ -179,7 +199,7 @@ export default function DirectorView(props) {
           type={messageType}
         />
         <form onSubmit={allocateHandler}>
-        <Grid item md={2} xs={12}>
+        <Grid item md={12} xs={12}>
         <FormControl className={classes.formControl}>
           <TextField
           type= "number"
@@ -189,7 +209,7 @@ export default function DirectorView(props) {
             label="Actual material cost"
             size="small"
             aria-readonly={true}
-            value={totalCostOrdered()+totalCostStorematerial()}
+            value={totalOrderedActual()+totalCostStorematerial()}
             // onChange={(event) =>{setactualCost(event.target.value);
             // console.log(actualCost);
             // setButtonVisibility(true);}}
@@ -198,13 +218,14 @@ export default function DirectorView(props) {
         </FormControl>
       </Grid>
   
-        <Grid item md={5} xs={8}>
+        <Grid item md={12} xs={12}>
           <Button
             className={[classes.button, classes.acceptBtn].join(" ")}
             type="submit"
+           style={{width:'100%'}}
             size="large"
             variant="contained"
-            // onClick={allocateHandler}
+            //  onClick={allocateHandler}
             fullWidth
           >
             Allocate Material
@@ -214,6 +235,93 @@ export default function DirectorView(props) {
       </Grid>
     );
   };
+  const handleChange = (event,item,index) => {
+    setValue(event.target.value);
+    setActualCostArray(actualCostArray => [...actualCostArray,{material:item.material,actual:event.target.valueAsNumber,units:item.units,index:index}]) 
+  };
+
+  function displayOrder(index, item) {
+    console.log("display called");
+    console.log(index);
+    return (
+      <TableContainer component={Paper} elevation={3}>
+      <TableRow key={index}>
+        <TableCell align="left" width="30%">
+          {item.material}
+        </TableCell>
+        <TableCell align="left" width="40%">
+        <FormControl className={classes.formControl}>
+          <TextField
+            className={classes.numberInput}
+            type="number"
+            name={item.material}
+            fullWidth
+            required
+            autoFocus
+            InputLabelProps={{ shrink: true }}
+            inputProps={{ 'data-testid': 'lAmount' }}
+            label="Actual Cost"
+            size="small"
+            onChange={(event)=>handleChange(event,item,index)}
+          />
+        </FormControl>
+        </TableCell>
+        <TableCell align="right" width="20%">
+          {item.units}
+        </TableCell>
+      </TableRow>
+    </TableContainer>
+    );
+  }
+
+  const ordered = () => {
+    return (
+      <>
+        <br></br>
+        <br></br>
+        <Grid item xs={12} md={12}>
+          <Typography variant="h5" align="center">
+           Fill the Actual Cost 
+          </Typography>
+        </Grid>
+        <Grid container alignItems="center" justifyContent="center">
+          <Grid item md={6} xs={12}>
+            <Table aria-label="simple table">
+              <Paper elevation={2}>
+                <TableHead>
+                  <TableRow>
+                    <TableCell align="left" width="40%">
+                     Material
+                    </TableCell>
+                    <TableCell align="left" width="50%">
+                     Actual unit cost
+                    </TableCell>
+                    <TableCell
+                      align="left"
+                      component="th"
+                      scope="row"
+                      width="40%"
+                    >
+                     Units
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+              </Paper>
+              <TableBody>
+                {OrderedMaterial.map((item, index) => (
+                  <React.Fragment key={index}>
+                    {displayOrder(index, item)}
+                  </React.Fragment>
+                ))}
+              </TableBody>
+            </Table>
+          </Grid>
+        </Grid>
+      </>
+    );
+  };
+
+
   const material = () => {
     console.log(StoreMaterial);
     return (
@@ -265,6 +373,7 @@ export default function DirectorView(props) {
                 ))}
               </TableBody>
             </Table>
+          
             <Grid item xs={12}>
               <Typography
                 align="right"
@@ -324,6 +433,13 @@ export default function DirectorView(props) {
     let total = 0;
     OrderedMaterial.forEach((item) => {
       total += item.approxCost * item.units;
+    });
+    return total;
+  }
+  function totalOrderedActual() {
+    let total = 0;
+    Object.values(actualCostArray.reduce((acc,cur)=>Object.assign(acc,{[cur.material]:cur}),{})).forEach((item) => {
+      total += item.actual * item.units;
     });
     return total;
   }
@@ -393,17 +509,19 @@ export default function DirectorView(props) {
         variant="subtitle1"
         className={classes.costText_total}
       >
-        Total Estimated cost :{" "}
+         Total Estimated cost :{" "}
         {totalCostOrdered() + totalCostStorematerial()}
-        
-
       </Typography>
       {editComplaint && (
         <div className={classes.div}>
-          { formButtons()}
+           {OrderedMaterial.length !== 0 ? ordered() : null}
+           { formButtons()}
         </div>
       )}
-     
+       {/* <div className={classes.div}>
+           {OrderedMaterial.length !== 0 ? ordered() : null}
+           { formButtons()}
+        </div> */}
     </React.Fragment>
   );
 }
